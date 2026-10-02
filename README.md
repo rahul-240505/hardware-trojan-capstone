@@ -2,17 +2,17 @@
 
 **Candidate:** Rahul Kumar Mahato (123CS0183)  
 **Supervisor:** Prof. Sumanta Pyne  
+**Institution:** National Institute of Technology (NIT) Rourkela  
 **Term:** Capstone Project-I (Autumn Semester 2026-27)
 
 ---
 
-## 1. Overview & Problem Statement
+## 1. Executive Summary
 Battery-powered edge IoT nodes and implantable medical devices (IMDs) operate under strict Size, Weight, and Power (SWaP) constraints and rely on deep-sleep states for multi-year battery longevity. Adversaries exploit untrusted foundries and 3PIP blocks to inject **Vampire Trojans**—stealthy hardware modifications that leave logical outputs untouched during standard verification while draining power during sleep states.
 
-This project investigates two critical barriers in low-power hardware security and proposes a novel detection paradigm:
-1. **The Synthesis-Masking Effect:** Modern EDA synthesizers flatten and merge malicious Trojan logic into benign combinational paths, masking the Trojan from gate-level and digital side-channel anomaly detectors.
-2. **The PVT Noise Barrier:** Process, Voltage, and Temperature (PVT) variations drown out microscopic Trojan power signatures (< 50 gates) in traditional post-silicon Side-Channel Analysis (SCA).
-3. **Novel Analog State-Space RC Decay Monitor:** A near-zero overhead (~38.5 nW) analog state-space monitoring model ($\dot{\mathbf{x}}(t) = \mathbf{A}\mathbf{x}(t) + \mathbf{B}\mathbf{u}(t)$) that tracks passive decoupling capacitor RC decay trajectories during deep sleep to detect Vampire Trojans with **99.80% accuracy**.
+This repository contains the complete, end-to-end open-source Electronic Design Automation (EDA) simulation pipeline, 45nm gate-level synthesis-masking benchmarks (`Sensor`, `RS232`, `AES-T1800`), statistical Kullback-Leibler ($D_{KL}$) PVT noise analyzers, and the **Analog State-Space RC Decay Monitor** proof-of-concept.
+
+📄 **[Read the Full Capstone Technical Report & Manuscript Draft (`paper/Capstone_Final_Report.md`)](paper/Capstone_Final_Report.md)**
 
 ---
 
@@ -25,77 +25,56 @@ This project investigates two critical barriers in low-power hardware security a
 
 ---
 
-## 3. Repository Structure
+## 3. Master Experimental Results Summary (45nm NanGate)
 
-    capstone_ht/
-    ├── rtl/                          # Clean and Vampire-Infected Verilog RTL (Sensor Prototype & RS232 UART)
-    ├── tb/                           # Verification testbenches (tb_sensor.v, tb_rs232.v)
-    ├── netlist/                      # Yosys-synthesized 45nm gate-level netlists (clean, unopt, masked)
-    ├── scripts/                      # Yosys synthesis scripts & Python KL-divergence / RC state-space models
-    ├── lib/                          # NanGate 45nm Liberty (.lib) and behavioral cell models (nangate45_cells.v)
-    ├── vcd/                          # Value Change Dump (.vcd) switching activity traces
-    ├── results_phase1_2.png          # Phase 1-2: 45nm Gate-Level Switching & Synthesis-Masking Dashboard
-    ├── results_phase3_rs232.png      # Phase 3: RS232 Benchmark KL-Divergence & PVT Noise Barrier Sweep
-    └── results_phase4_rc_monitor.png # Phase 4: Analog State-Space RC Decay Monitor & Phase Portrait
+| Benchmark Suite | Clean 45nm Gates | Unopt Trojan Gates | Masked Trojan Gates | Trojan Area Absorbed | Clean Toggles | Unopt Toggles | Masked Toggles | Dynamic Toggles Masked |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **1. Sensor Node Prototype** | 44 | 72 | 58 | **50.00%** | 6,493 | 14,848 | 12,985 | **22.30%** |
+| **2. RS232 UART Transceiver** | 163 | 193 | 163 | **100.00%** | 31,717 | 42,054 | 31,123 | **100.00%** |
+| **3. AES-T1800 Crypto S-Box** | 161 | 201 | 196 | **12.50%** | 36,697 | 48,887 | 44,220 | **38.29%** |
 
 ---
 
-## 4. Experimental Progress & Quantitative Results
+## 4. Visual Dashboards & Key Findings
 
-### Phase 1 & 2: Prototype Vampire Trojan & 45nm Gate-Level Synthesis-Masking (Completed)
-* **Design:** Built a sleep-enabled sensor node (`rtl/sensor_clean.v`) and injected a dormant Vampire Trojan (`rtl/sensor_trojan.v`) activated exclusively during `sleep_mode == 1`.
-* **45nm Gate-Level Simulation (GLS) Metrics:**
-  * **Clean Gate-Level Toggles:** `6,493` (4.2 KB netlist)
-  * **Unoptimized Trojan Gate-Level Toggles:** `14,848` (14.0 KB netlist)
-  * **Synthesized-Masked Trojan Gate-Level Toggles:** `12,985` (7.0 KB netlist — **1,863 redundant gate toggles eliminated** by Yosys optimization).
-
+### Phase 1 & 2: 45nm Gate-Level Switching & Synthesis-Masking (`Sensor Prototype`)
+* Demonstrates dormant behavior during active cycles (0–52) and parasitic energy drain during deep sleep (cycles 52–150), with Yosys eliminating **1,863 redundant gate toggles**.
 ![Phase 1 and 2 Results](results_phase1_2.png)
 
----
-
-### Phase 3: RS232 UART Benchmark & The PVT Noise Barrier (Completed)
-* **Methodology:** Scaled the pipeline to an **RS232 UART Transceiver** (`rtl/rs232_clean.v` vs. `rtl/rs232_trojan.v`) where the Vampire Trojan trigger cone shares combinational parity/checksum logic with the UART core. Swept Gaussian PVT environmental variation from **1% to 25%** (`scripts/analyze_rs232_pvt.py`).
-* **Quantitative Masking & PVT Findings:**
-  * **45nm Physical Gate Count (Clean Baseline):** `163 gates`
-  * **45nm Physical Gate Count (Unoptimized Trojan):** `193 gates` (+30 Trojan gates)
-  * **45nm Physical Gate Count (Synthesized-Masked):** `163 gates` (**100.00% of Trojan gate area overhead absorbed** via aggressive Yosys sub-expression sharing and ABC restructuring!)
-  * **KL Divergence @ 10% PVT Noise:** Drops from `0.006192 nats` (Unoptimized) to `0.003322 nats` (Synthesized-Masked) — **46.35% statistical obscuration**.
-  * **Side-Channel SNR @ 15% PVT Noise:** **`-10.90 dB`**, proving the masked Trojan signal sits well below the physical silicon noise floor.
-
+### Phase 3: RS232 UART Benchmark & The PVT Noise Barrier
+* Aggressive synthesis absorbs **100% of the Trojan gate count overhead** (`193 -> 163 gates`), reducing KL Divergence by **92.31%** and pushing the side-channel SNR to **-10.90 dB** at 15% PVT variation.
 ![Phase 3 RS232 Benchmark and PVT Sweep](results_phase3_rs232.png)
 
----
-
-### Phase 4: Novel Analog State-Space RC Decay Monitor (Completed)
-* **Mathematical Formulation:** Modeled the chip's Power Distribution Network (PDN) during deep sleep as a 2-node linear time-invariant (LTI) state-space RC system ($\dot{\mathbf{x}}(t) = \mathbf{A}\mathbf{x}(t)$) with global decoupling capacitance  = 100\text{ pF}$, local cluster capacitance  = 25\text{ pF}$, grid resistance {grid} = 50\ \Omega$, and baseline sub-threshold sleep leakage {leak} = 8.0\text{ k}\Omega$ (`scripts/model_rc_monitor.py`).
-* **State-Space Detection Performance:**
-  * **Dominant Eigenvalue Shift:** Shifts from `-1.01e+06 s^-1` (Clean) to `-1.55e+06 s^-1` (Vampire Trojan).
-  * **Peak Voltage Anomaly ($\Delta V_{max}$):** Produces a **`130.65 mV`** voltage separation at optimal sampling instant {opt} = 0.78\ \mu\text{s}$.
-  * **Monte Carlo Detection Accuracy (500 PVT trials):** **`99.80%`** (True Positive Rate: `99.8%`, False Positive Rate: `0.2%`) at **~38.5 nW** analog comparator power budget.
-
+### Phase 4: Novel Analog State-Space RC Decay Monitor
+* Models the 2-node PDN sleep decay ($\dot{\mathbf{x}}(t) = \mathbf{A}\mathbf{x}(t)$) using a stiff `Radau` ODE solver. Captures a **156.45 mV** voltage drop at $t_{opt} = 0.80\ \mu\text{s}$ with **100.0% Monte Carlo accuracy (500 dies)** and **~38.5 nW** active power budget.
 ![Phase 4 Analog State-Space RC Monitor](results_phase4_rc_monitor.png)
 
+### Phase 5: Cross-Benchmark Synthesis-Masking Comparison (`Sensor` vs. `RS232` vs. `AES-T1800`)
+* Contrasts full synthesis absorption in linear control/checksum logic (`RS232`: 100% area masked) against partial absorption in nonlinear Galois Field $GF(2^8)$ cryptographic logic (`AES-T1800`: 12.5% area masked, 38.29% switching toggles masked).
+![Phase 5 Cross-Benchmark Comparison](results_phase5_benchmarks.png)
+
 ---
 
-## 5. Reproducing the Complete Pipeline
+## 5. Repository Structure
 
-    # 1. Download 45nm Liberty timing/power library
+    capstone_ht/
+    ├── paper/
+    │   └── Capstone_Final_Report.md     # Complete IEEE-style technical report & mathematical derivations
+    ├── rtl/                             # Clean and Vampire-Infected Verilog RTL (Sensor, RS232, AES-T1800)
+    ├── tb/                              # Verification testbenches (tb_sensor.v, tb_rs232.v, tb_aes.v)
+    ├── netlist/                         # Yosys-synthesized 45nm gate-level netlists (clean, unopt, masked)
+    ├── scripts/                         # Yosys synthesis scripts & Python KL-divergence / RC state-space models
+    ├── lib/                             # NanGate 45nm Liberty (.lib) and behavioral cell models (nangate45_cells.v)
+    ├── vcd/                             # Value Change Dump (.vcd) switching activity traces
+    ├── results_phase1_2.png             # Phase 1-2 Visual Dashboard
+    ├── results_phase3_rs232.png         # Phase 3 Visual Dashboard
+    ├── results_phase4_rc_monitor.png    # Phase 4 Visual Dashboard
+    └── results_phase5_benchmarks.png    # Phase 5 Cross-Benchmark Summary Chart
+
+---
+
+## 6. One-Command Full Reproduction
+
     ./scripts/download_lib.sh
-
-    # 2. Run Phase 1 & 2 (Sensor Prototype + Gate-Level Synthesis Masking)
-    yosys -q -s scripts/run_masking_synth.ys
-    iverilog -g2005-sv -DVCD_FILE=\"vcd/gls_clean.vcd\" -o sim_gls_clean lib/nangate45_cells.v netlist/clean_synth.v tb/tb_sensor.v && vvp sim_gls_clean
-    iverilog -g2005-sv -DVCD_FILE=\"vcd/gls_unopt.vcd\" -o sim_gls_unopt lib/nangate45_cells.v netlist/trojan_unopt_synth.v tb/tb_sensor.v && vvp sim_gls_unopt
-    iverilog -g2005-sv -DVCD_FILE=\"vcd/gls_masked.vcd\" -o sim_gls_masked lib/nangate45_cells.v netlist/trojan_masked_synth.v tb/tb_sensor.v && vvp sim_gls_masked
-    python3 scripts/compare_masking.py
-    python3 scripts/plot_results.py
-
-    # 3. Run Phase 3 (RS232 UART Benchmark + PVT Noise Sweep)
-    yosys -q -s scripts/synth_rs232.ys
-    iverilog -g2005-sv -DVCD_FILE=\"vcd/rs232_clean.vcd\" -o sim_rs232_clean lib/nangate45_cells.v netlist/rs232_clean_synth.v tb/tb_rs232.v && vvp sim_rs232_clean
-    iverilog -g2005-sv -DVCD_FILE=\"vcd/rs232_unopt.vcd\" -o sim_rs232_unopt lib/nangate45_cells.v netlist/rs232_unopt_synth.v tb/tb_rs232.v && vvp sim_rs232_unopt
-    iverilog -g2005-sv -DVCD_FILE=\"vcd/rs232_masked.vcd\" -o sim_rs232_masked lib/nangate45_cells.v netlist/rs232_masked_synth.v tb/tb_rs232.v && vvp sim_rs232_masked
-    python3 scripts/analyze_rs232_pvt.py
-
-    # 4. Run Phase 4 (Analog State-Space RC Decay Monitor)
-    python3 scripts/model_rc_monitor.py
+    yosys -q -s scripts/run_masking_synth.ys && yosys -q -s scripts/synth_rs232.ys && yosys -q -s scripts/synth_aes.ys
+    python3 scripts/plot_results.py && python3 scripts/analyze_rs232_pvt.py && python3 scripts/model_rc_monitor.py && python3 scripts/plot_benchmarks.py
