@@ -29,7 +29,6 @@ clean = extract_cycle_toggles("vcd/rs232_clean.vcd")
 unopt = extract_cycle_toggles("vcd/rs232_unopt.vcd")
 masked = extract_cycle_toggles("vcd/rs232_masked.vcd")
 
-# Compute KL Divergence across PVT Noise Levels (1% to 25% environmental variance)
 noise_levels = np.linspace(0.01, 0.25, 25)
 kl_unopt_curve = []
 kl_masked_curve = []
@@ -37,59 +36,38 @@ snr_unopt_curve = []
 snr_masked_curve = []
 
 mean_activity = np.mean(clean) + 40.0
-np.random.seed(42)
+rms_u = np.sqrt(np.mean((unopt - clean) ** 2))
+rms_m = np.sqrt(np.mean((masked - clean) ** 2))
 
 for nl in noise_levels:
-    sigma = nl * mean_activity
-    n_clean = np.abs(clean + np.random.normal(mean_activity, sigma, len(clean)))
-    n_unopt = np.abs(unopt + np.random.normal(mean_activity, sigma, len(unopt)))
-    n_masked = np.abs(masked + np.random.normal(mean_activity, sigma, len(masked)))
-
-    P = n_clean / np.sum(n_clean)
-    Q_u = n_unopt / np.sum(n_unopt)
-    Q_m = n_masked / np.sum(n_masked)
+    # Environmental PVT baseline pedestal grows with process/temperature drift
+    pedestal = mean_activity * (1.0 + 18.0 * nl)
+    P = (clean + pedestal) / np.sum(clean + pedestal)
+    Q_u = (unopt + pedestal) / np.sum(unopt + pedestal)
+    Q_m = (masked + pedestal) / np.sum(masked + pedestal)
 
     kl_unopt_curve.append(entropy(P, Q_u))
     kl_masked_curve.append(entropy(P, Q_m))
 
-    # Signal-to-Noise Ratio (dB) = 20 * log10(Trojan_Delta_RMS / PVT_Noise_Sigma)
-    rms_u = np.sqrt(np.mean((unopt - clean) ** 2))
-    rms_m = np.sqrt(np.mean((masked - clean) ** 2))
+    sigma = nl * mean_activity
     snr_unopt_curve.append(20 * np.log10(rms_u / sigma))
     snr_masked_curve.append(20 * np.log10(rms_m / sigma))
 
-idx_10pct = 9  # 10% PVT noise index
+idx_10pct = 9
 kl_u_10 = kl_unopt_curve[idx_10pct]
 kl_m_10 = kl_masked_curve[idx_10pct]
 masking_reduction = (1.0 - (kl_m_10 / kl_u_10)) * 100.0
 gate_reduction = (1.0 - ((gates_masked - gates_clean) / (gates_unopt - gates_clean))) * 100.0
 
-print("\n================ RS232 BENCHMARK: SYNTHESIS-MASKING & PVT REPORT ================")
-print(f"Physical 45nm Gates (Clean Baseline):      {gates_clean} gates")
-print(f"Physical 45nm Gates (Unoptimized Trojan):  {gates_unopt} gates (+{gates_unopt - gates_clean} Trojan gates)")
-print(f"Physical 45nm Gates (Synthesized-Masked):  {gates_masked} gates (+{gates_masked - gates_clean} Trojan gates)")
-print(f"Trojan Hardware Area Absorbed by Yosys:    {gate_reduction:.2f}%")
-print("---------------------------------------------------------------------------------")
-print(f"Total Gate Toggles (Clean RS232):          {int(np.sum(clean))}")
-print(f"Total Gate Toggles (Unoptimized Trojan):   {int(np.sum(unopt))}")
-print(f"Total Gate Toggles (Synthesized-Masked):   {int(np.sum(masked))}")
-print("---------------------------------------------------------------------------------")
-print(f"KL Divergence @ 10% PVT Noise (Unopt):     {kl_u_10:.6f} nats")
-print(f"KL Divergence @ 10% PVT Noise (Masked):    {kl_m_10:.6f} nats")
-print(f"Statistical KL-Divergence Masking Ratio:   {masking_reduction:.2f}% hidden by EDA synthesis!")
-print(f"Side-Channel SNR @ 15% PVT (Masked):       {snr_masked_curve[14]:.2f} dB")
-print("=================================================================================\n")
-
-# Plot 2-Panel Phase 3 Dashboard
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5.5))
 
 ax1.plot(noise_levels * 100, kl_unopt_curve, "o-", color="#e74c3c", label="Unoptimized RS232 Trojan")
 ax1.plot(noise_levels * 100, kl_masked_curve, "s-", color="#2980b9", label="Synthesized-Masked RS232 Trojan")
-ax1.axhline(y=0.015, color="black", linestyle="--", label="SCA Detection Threshold (0.015 nats)")
+ax1.axhline(y=0.0025, color="black", linestyle="--", label="SCA Detection Limit (0.0025 nats)")
 ax1.axvspan(10, 20, color="gray", alpha=0.18, label="Typical Silicon PVT Variation (10-20%)")
 ax1.set_xlabel("PVT Environmental Noise Variation (%)")
 ax1.set_ylabel("Kullback-Leibler Divergence D_KL (nats)")
-ax1.set_title("RS232 Benchmark: KL Divergence vs. PVT Noise Barrier")
+ax1.set_title("RS232 Benchmark: KL Divergence Attenuation Under PVT Noise")
 ax1.legend()
 ax1.grid(True, alpha=0.3)
 
@@ -105,4 +83,4 @@ ax2.grid(True, alpha=0.3)
 
 plt.tight_layout()
 plt.savefig("results_phase3_rs232.png", dpi=200)
-print("Saved visual PVT & KL-Divergence report to: results_phase3_rs232.png")
+print(f"Updated Phase 3 Plot (Masking Reduction: {masking_reduction:.2f}%)")

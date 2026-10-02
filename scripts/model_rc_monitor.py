@@ -42,8 +42,8 @@ x0 = [1.0, 1.0]
 
 # Monte Carlo PVT Sweep (50 random silicon dies with +/- 5% RC tolerance in sleep)
 np.random.seed(42)
-sol_clean = solve_ivp(lambda t, x: A_clean @ x, t_span, x0, t_eval=t_eval)
-sol_trojan = solve_ivp(lambda t, x: A_trojan @ x, t_span, x0, t_eval=t_eval)
+sol_clean = solve_ivp(lambda t, x: A_clean @ x, t_span, x0, t_eval=t_eval, method="Radau")
+sol_trojan = solve_ivp(lambda t, x: A_trojan @ x, t_span, x0, t_eval=t_eval, method="Radau")
 
 v_clean = sol_clean.y[1]
 v_trojan = sol_trojan.y[1]

@@ -1,0 +1,24 @@
+read_verilog rtl/aes_t1800_clean.v
+hierarchy -check -top aes_t1800
+proc; opt -full; techmap; opt -fast
+dfflibmap -liberty lib/NangateOpenCellLibrary_typical.lib
+abc -liberty lib/NangateOpenCellLibrary_typical.lib
+opt_clean -purge
+write_verilog -noattr netlist/aes_clean_synth.v
+design -reset
+
+read_verilog rtl/aes_t1800_trojan.v
+hierarchy -check -top aes_t1800
+proc; techmap
+dfflibmap -liberty lib/NangateOpenCellLibrary_typical.lib
+abc -liberty lib/NangateOpenCellLibrary_typical.lib
+write_verilog -noattr netlist/aes_unopt_synth.v
+design -reset
+
+read_verilog rtl/aes_t1800_trojan.v
+hierarchy -check -top aes_t1800
+proc; flatten; opt -full; share -aggressive; wreduce; peepopt; techmap; opt -fast
+dfflibmap -liberty lib/NangateOpenCellLibrary_typical.lib
+abc -liberty lib/NangateOpenCellLibrary_typical.lib -dff
+opt_clean -purge
+write_verilog -noattr netlist/aes_masked_synth.v
