@@ -1,0 +1,13 @@
+# Python virtual environment & cache
+venv/
+__pycache__/
+*.pyc
+
+# Compiled simulation binaries & large waveform dumps
+sim_*
+*.out
+vcd/*.vcd
+
+# Large external standard cell libraries (downloaded via setup script)
+lib/*.lib
+lib/*.v

@@ -1,0 +1,19 @@
+# 1. Read infected Verilog design
+read_verilog rtl/sensor_trojan.v
+hierarchy -check -top sensor_node
+
+# 2. Convert high-level processes (always blocks) to logic networks
+proc; opt; fsm; opt; memory; opt
+
+# 3. Aggressive synthesis flattening & optimization (causes Synthesis-Masking)
+flatten
+opt -full
+techmap; opt -fast
+
+# 4. Map flip-flops and combinational logic to NanGate 45nm standard cells
+dfflibmap -liberty lib/NangateOpenCellLibrary_typical.lib
+abc -liberty lib/NangateOpenCellLibrary_typical.lib -script +strash;scorr;ifraig;retime;strash;dch -f;map;
+
+# 5. Print gate count & area statistics and write gate-level netlist
+stat -liberty lib/NangateOpenCellLibrary_typical.lib
+write_verilog -noattr netlist/sensor_trojan_synth.v
