@@ -3,11 +3,12 @@ read_verilog rtl/sensor_clean.v
 hierarchy -check -top sensor_node
 proc; opt -full; techmap; opt -fast
 dfflibmap -liberty lib/NangateOpenCellLibrary_typical.lib
-abc -liberty lib/NangateOpenCellLibrary_typical.lib -script +strash;scorr;ifraig;retime;dch -f;map;
+abc -liberty lib/NangateOpenCellLibrary_typical.lib
+opt_clean -purge
 write_verilog -noattr netlist/clean_synth.v
 design -reset
 
-# --- B. UNOPTIMIZED TROJAN SYNTHESIS (No Flattening / Basic Mapping) ---
+# --- B. UNOPTIMIZED TROJAN SYNTHESIS (No Flattening / Redundant Gates Preserved) ---
 read_verilog rtl/sensor_trojan.v
 hierarchy -check -top sensor_node
 proc; techmap
@@ -19,7 +20,8 @@ design -reset
 # --- C. AGGRESSIVELY OPTIMIZED TROJAN SYNTHESIS (Synthesis-Masking Active) ---
 read_verilog rtl/sensor_trojan.v
 hierarchy -check -top sensor_node
-proc; flatten; opt -full; share -aggressive; techmap; opt -fast
+proc; flatten; opt -full; share -aggressive; wreduce; peepopt; techmap; opt -fast
 dfflibmap -liberty lib/NangateOpenCellLibrary_typical.lib
-abc -liberty lib/NangateOpenCellLibrary_typical.lib -script +strash;scorr;ifraig;retime;dch -f;map;
+abc -liberty lib/NangateOpenCellLibrary_typical.lib -dff
+opt_clean -purge
 write_verilog -noattr netlist/trojan_masked_synth.v

