@@ -1,0 +1,27 @@
+# A. Clean RS232 Baseline
+read_verilog rtl/rs232_clean.v
+hierarchy -check -top rs232_uart
+proc; opt -full; techmap; opt -fast
+dfflibmap -liberty lib/NangateOpenCellLibrary_typical.lib
+abc -liberty lib/NangateOpenCellLibrary_typical.lib
+opt_clean -purge
+write_verilog -noattr netlist/rs232_clean_synth.v
+design -reset
+
+# B. Unoptimized RS232 Trojan (No sub-expression merging)
+read_verilog rtl/rs232_trojan.v
+hierarchy -check -top rs232_uart
+proc; techmap
+dfflibmap -liberty lib/NangateOpenCellLibrary_typical.lib
+abc -liberty lib/NangateOpenCellLibrary_typical.lib
+write_verilog -noattr netlist/rs232_unopt_synth.v
+design -reset
+
+# C. Aggressively Optimized RS232 Trojan (Synthesis-Masking Active)
+read_verilog rtl/rs232_trojan.v
+hierarchy -check -top rs232_uart
+proc; flatten; opt -full; share -aggressive; wreduce; peepopt; techmap; opt -fast
+dfflibmap -liberty lib/NangateOpenCellLibrary_typical.lib
+abc -liberty lib/NangateOpenCellLibrary_typical.lib -dff
+opt_clean -purge
+write_verilog -noattr netlist/rs232_masked_synth.v
